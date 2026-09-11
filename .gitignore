@@ -1,0 +1,5 @@
+node_modules/
+*.db
+_check.js
+Thumbs.db
+.DS_Store
