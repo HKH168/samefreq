@@ -1422,7 +1422,7 @@ async function api(path, opts = {}) {
   };
   // 演示账号始终使用本地演示引擎，即使页面配置了云端 API。
   // 读取会话和点击操作可能发生在启动异步流程完成前，因此不能只依赖 DEMO_MODE 标志。
-  if (getToken() === 'demo-local' && !DEMO_MODE) {
+  if (!CLOUD_MODE && getToken() === 'demo-local' && !DEMO_MODE) {
     DEMO_MODE = true; offline = true; loadLocalSession();
   }
   if (DEMO_MODE) return localCall();
@@ -1900,7 +1900,7 @@ async function likeWallPost(postId, btn) {
  * 渲染：消息
  * ================================================================== */
 async function chatRequest(path, body) {
-  if (getToken() === 'demo-local' && !DEMO_MODE) {
+  if (!CLOUD_MODE && getToken() === 'demo-local' && !DEMO_MODE) {
     DEMO_MODE = true; offline = true; loadLocalSession();
   }
   if (DEMO_MODE) {
@@ -2852,7 +2852,8 @@ setInterval(tickClock, 20000);
  * ================================================================== */
 async function load() {
   // 登录页的本地演示账号使用 demo-local；主站初始化时也要恢复演示会话，避免再次显示“请登录”。
-  if (getToken() === 'demo-local') { DEMO_MODE = true; offline = true; loadLocalSession(); }
+  if (CLOUD_MODE && getToken() === 'demo-local') clearCloudSession();
+  if (!CLOUD_MODE && getToken() === 'demo-local') { DEMO_MODE = true; offline = true; loadLocalSession(); }
   try {
     const d = await api('/api/bootstrap');
     if (!d.ok) throw new Error(d.msg);

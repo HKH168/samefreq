@@ -208,14 +208,14 @@ button,input{font-family:inherit;color:inherit}
       <div class="field" id="password-field" style="display:none">
         <label>登录密码</label>
         <div class="input-wrap" id="password-wrap">
-          <input id="password" type="password" minlength="6" maxlength="128" placeholder="请输入至少 6 位密码" autocomplete="current-password">
+          <input id="password" type="password" minlength="8" maxlength="128" placeholder="请输入至少 8 位密码" autocomplete="current-password">
         </div>
         <div class="field-err" id="password-err"></div>
       </div>
       <div class="field" id="password-confirm-field" style="display:none">
         <label>确认密码</label>
         <div class="input-wrap" id="password-confirm-wrap">
-          <input id="password-confirm" type="password" minlength="6" maxlength="128" placeholder="请再次输入密码" autocomplete="new-password">
+          <input id="password-confirm" type="password" minlength="8" maxlength="128" placeholder="请再次输入密码" autocomplete="new-password">
         </div>
         <div class="field-err" id="password-confirm-err"></div>
       </div>
@@ -262,7 +262,7 @@ button,input{font-family:inherit;color:inherit}
       </div>
       <div class="field" id="set-password-field" style="display:none;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);text-align:left">
         <label>设置邮箱密码（可选）</label>
-        <div class="input-wrap" id="set-password-wrap"><input id="set-password" type="password" minlength="6" maxlength="128" placeholder="为当前账号设置至少 6 位密码" autocomplete="new-password"></div>
+        <div class="input-wrap" id="set-password-wrap"><input id="set-password" type="password" minlength="8" maxlength="128" placeholder="为当前账号设置至少 8 位密码" autocomplete="new-password"></div>
         <div class="field-err" id="set-password-err"></div>
         <button type="button" class="ghost" style="margin-top:9px" onclick="setPassword()">保存密码</button>
       </div>
@@ -599,15 +599,11 @@ async function passwordLogin(account){
   const confirm=document.getElementById('password-confirm').value;
   let bad=false;
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)){fieldErr('phone-wrap','phone-err','请输入正确的邮箱地址');bad=true}
-  if(password.length<6){fieldErr('password-wrap','password-err','密码至少需要 6 位');bad=true}
+  if(password.length<8){fieldErr('password-wrap','password-err','密码至少需要 8 位');bad=true}
   if(passwordIntent==='signup' && password!==confirm){fieldErr('password-confirm-wrap','password-confirm-err','两次输入的密码不一致');bad=true}
   if(!document.getElementById('agree').checked){toast('请先同意用户协议');return}
   if(bad)return;
-  // 公开演示账号：不依赖邮件确认，登录后使用完整本地演示引擎。
-  if(account==='demo@chijmqhkh.space' && password==='Demo123456'){
-    const demo=demoUser('13103966090'); demo.email=account; demo.nickname='演示同学'; demo.uid='DEMO2026';
-    saveSession({token:'demo-local',user:demo}); enableDemo(); showSuccess(demo,'demo-local','演示账号登录成功',true); return;
-  }
+  // 演示邮箱与其他账号一样，必须通过云端认证获得真实会话。
   const btn=document.getElementById('login-btn'); if(btn.disabled)return;
   btn.disabled=true; btn.classList.add('loading'); btn.textContent=passwordIntent==='signup'?'注册中…':'登录中…';
   try{
@@ -625,7 +621,7 @@ async function passwordLogin(account){
 
 async function setPassword(){
   const value=document.getElementById('set-password').value; fieldErr('set-password-wrap','set-password-err');
-  if(value.length<6){fieldErr('set-password-wrap','set-password-err','密码至少需要 6 位');return;}
+  if(value.length<8){fieldErr('set-password-wrap','set-password-err','密码至少需要 8 位');return;}
   const token=localStorage.getItem('sf_token'); if(!token){toast('请先登录');return;}
   try{const r=await fetch(API+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({mode:'set',password:value})}); const d=await r.json().catch(()=>null); if(!r.ok||!d?.ok)throw new Error(d?.msg||'保存密码失败'); toast('密码已保存，下次可使用邮箱密码登录'); document.getElementById('set-password-field').style.display='none';}
   catch(e){fieldErr('set-password-wrap','set-password-err',e.message||'保存密码失败');}
