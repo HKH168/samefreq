@@ -1420,6 +1420,11 @@ async function api(path, opts = {}) {
     if (d && d.needLogin) { needLogin(); throw new Error(d.msg); }
     return d;
   };
+  // 演示账号始终使用本地演示引擎，即使页面配置了云端 API。
+  // 读取会话和点击操作可能发生在启动异步流程完成前，因此不能只依赖 DEMO_MODE 标志。
+  if (getToken() === 'demo-local' && !DEMO_MODE) {
+    DEMO_MODE = true; offline = true; loadLocalSession();
+  }
   if (DEMO_MODE) return localCall();
 
   const headers = Object.assign({}, opts.headers || {});
@@ -1895,6 +1900,9 @@ async function likeWallPost(postId, btn) {
  * 渲染：消息
  * ================================================================== */
 async function chatRequest(path, body) {
+  if (getToken() === 'demo-local' && !DEMO_MODE) {
+    DEMO_MODE = true; offline = true; loadLocalSession();
+  }
   if (DEMO_MODE) {
     const d=LOCAL.db(); d.chats=d.chats||{};
     const peer=(path.match(/[^/]+$/)||[''])[0];
