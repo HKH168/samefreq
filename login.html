@@ -384,8 +384,7 @@ if(CLOUD_MODE){
   document.getElementById('login-sub').textContent='使用邮箱和密码登录，也可切换邮箱验证码';
   if(localStorage.getItem('sf_token')==='demo-local') clearSession();
 }else{
-  document.getElementById('mode-email').hidden=true;
-  document.getElementById('mode-password').hidden=true;
+  // 本地后端同样支持邮箱密码登录，保留认证入口。
 }
 ['phone','password','password-confirm','code'].forEach(id=>document.getElementById(id)?.addEventListener('keydown',e=>{if(e.key==='Enter')login()}));
 function clearSession(){ ['sf_token','sf_refresh_token','sf_expires_at','sf_user'].forEach(k=>localStorage.removeItem(k)); }
