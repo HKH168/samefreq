@@ -175,9 +175,9 @@ button,input{font-family:inherit;color:inherit}
     <h1>看演出这件事，<br><em>不该一个人去。</em></h1>
     <p>找到同校一起冲那场演唱会的人，认识全校和你听同一位歌手的人。</p>
     <div class="bstats">
-      <div><b>1,286</b><span>已认证同学</span></div>
-      <div><b>3</b><span>覆盖高校</span></div>
-      <div><b>128</b><span>成功组队</span></div>
+      <div><b id="login-users">—</b><span>注册同学</span></div>
+      <div><b id="login-events">—</b><span>近期演出</span></div>
+      <div><b id="login-walls">—</b><span>应援墙</span></div>
     </div>
   </div>
 
@@ -187,23 +187,47 @@ button,input{font-family:inherit;color:inherit}
       <div class="demo-note" id="demo-note">
         📱 <b>演示模式</b>：这是纯静态线上版，没有后端服务器，账户与数据保存在你自己的浏览器里（换设备或清缓存会重置）。点「获取验证码」会直接给出验证码，自动填入即可登录。
       </div>
-      <h2>手机号登录</h2>
-      <p class="sub">首次登录自动注册 · 仅支持在校生手机号</p>
+      <h2 id="login-title">手机号登录</h2>
+      <p class="sub" id="login-sub">首次登录自动注册 · 可使用手机号或邮箱</p>
+
+      <div style="display:flex;gap:8px;margin:0 0 12px">
+        <button type="button" id="mode-phone" class="ghost" style="flex:1;padding:8px" onclick="setAuthMode('phone')">手机号</button>
+        <button type="button" id="mode-email" class="ghost" style="flex:1;padding:8px" onclick="setAuthMode('email')">邮箱验证码</button>
+        <button type="button" id="mode-password" class="ghost" style="flex:1;padding:8px" onclick="setAuthMode('password')">邮箱密码</button>
+      </div>
 
       <div class="field">
-        <label>手机号</label>
+        <label id="account-label">手机号</label>
         <div class="input-wrap" id="phone-wrap">
-          <span class="prefix">+86</span>
+          <span class="prefix" id="account-prefix">+86</span>
           <input id="phone" type="tel" maxlength="11" placeholder="请输入 11 位手机号" autocomplete="tel">
         </div>
         <div class="field-err" id="phone-err"></div>
       </div>
 
-      <div class="field">
+      <div class="field" id="password-field" style="display:none">
+        <label>登录密码</label>
+        <div class="input-wrap" id="password-wrap">
+          <input id="password" type="password" minlength="6" maxlength="128" placeholder="请输入至少 6 位密码" autocomplete="current-password">
+        </div>
+        <div class="field-err" id="password-err"></div>
+      </div>
+      <div class="field" id="password-confirm-field" style="display:none">
+        <label>确认密码</label>
+        <div class="input-wrap" id="password-confirm-wrap">
+          <input id="password-confirm" type="password" minlength="6" maxlength="128" placeholder="请再次输入密码" autocomplete="new-password">
+        </div>
+        <div class="field-err" id="password-confirm-err"></div>
+      </div>
+      <div id="password-actions" style="display:none;text-align:right;margin:-4px 0 14px;font-size:12px;color:var(--ink-soft)">
+        <button type="button" class="ghost" id="password-intent" onclick="togglePasswordIntent()" style="border:none;padding:2px 0;color:var(--accent)">没有账号？注册</button>
+      </div>
+
+      <div class="field" id="code-field">
         <label>验证码</label>
         <div class="code-row">
           <div class="input-wrap" id="code-wrap">
-            <input id="code" type="tel" maxlength="6" placeholder="6 位短信验证码" autocomplete="one-time-code">
+            <input id="code" type="tel" maxlength="8" placeholder="6 位验证码" autocomplete="one-time-code">
           </div>
           <button class="code-btn" id="send-btn" onclick="sendCode()">获取验证码</button>
         </div>
@@ -220,6 +244,7 @@ button,input{font-family:inherit;color:inherit}
       <div class="tips">
         💡 <b>开发模式提示</b>：当前未接入真实短信通道，点击「获取验证码」后验证码会直接显示在页面提示与服务器控制台中，可自动填入完成登录。生产环境替换短信服务商即可。
       </div>
+
     </div>
 
     <!-- ===== 登录成功 ===== -->
@@ -234,6 +259,12 @@ button,input{font-family:inherit;color:inherit}
         <div class="row"><span>注册时间</span><span id="u-created">—</span></div>
         <div class="row"><span>会话令牌</span><span id="u-token" style="font-size:10.5px">—</span></div>
       </div>
+      <div class="field" id="set-password-field" style="display:none;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);text-align:left">
+        <label>设置邮箱密码（可选）</label>
+        <div class="input-wrap" id="set-password-wrap"><input id="set-password" type="password" minlength="6" maxlength="128" placeholder="为当前账号设置至少 6 位密码" autocomplete="new-password"></div>
+        <div class="field-err" id="set-password-err"></div>
+        <button type="button" class="ghost" style="margin-top:9px" onclick="setPassword()">保存密码</button>
+      </div>
       <button class="ghost" style="border:none;background:linear-gradient(120deg,#6C4AB6,#E85A8A);color:#fff;margin-bottom:10px;font-weight:700" onclick="goHome()">进入乐遇同频主站 →</button>
       <button class="ghost" onclick="backToLogin()">切换其他账号</button>
     </div>
@@ -243,18 +274,61 @@ button,input{font-family:inherit;color:inherit}
 </div>
 
 <script>
+// 已部署的公开 API 默认地址；旧的本地服务即使尚未提供 runtime-config.js，也可直接连接云端。
+window.SF_API_BASE = window.SF_API_BASE ?? document.querySelector('meta[name="sf-api-base"]')?.content ?? 'https://kgnbewbcitdjzumakbub.supabase.co/functions/v1/samefreq';
 // 站在当前目录下（兼容 GitHub Pages 的 /samefreq/ 子路径）；file:// 打开时回退到本地后端
-const BASE = /^https?:$/.test(location.protocol)
+// API 地址可通过 window.SF_API_BASE 或 <meta name="sf-api-base"> 配置，
+// 便于将同一静态前端连接到已部署的 Supabase Edge/Node API；未配置时保留本地回退。
+const CONFIGURED_API = String(window.SF_API_BASE || document.querySelector('meta[name="sf-api-base"]')?.content || '').trim().replace(/\/$/, '');
+const BASE = CONFIGURED_API || (/^https?:$/.test(location.protocol)
+  ? location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '')
+  : 'http://localhost:3000');
+const API = BASE;
+const SITE_BASE = /^https?:$/.test(location.protocol)
   ? location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '')
   : 'http://localhost:3000';
-const API = BASE;
-const APP_HOME = BASE + '/';
+const APP_HOME = SITE_BASE + '/';
+const CLOUD_MODE = !!CONFIGURED_API;
+let authMode = 'phone';
+let passwordIntent = 'login';
+let counting=false;
+let sendInFlight=false;
+let emailQuotaBlocked=false;
+function setAuthMode(mode){
+  authMode=mode;
+  const email=mode==='email' || mode==='password', input=document.getElementById('phone');
+  input.type=email?'email':'tel'; input.maxLength=email?120:11; input.placeholder=email?'请输入邮箱地址':'请输入 11 位手机号'; input.autocomplete=email?'email':'tel';
+  document.getElementById('account-prefix').textContent=email?'✉':' +86';
+  document.getElementById('account-label').textContent=email?'邮箱':'手机号';
+  document.getElementById('login-title').textContent=mode==='password'?(passwordIntent==='signup'?'注册账号':'邮箱密码登录'):(email?'邮箱验证码登录':'手机号登录');
+  document.getElementById('mode-phone').style.background=email?'#fff':'var(--accent-soft)';
+  document.getElementById('mode-email').style.background=email?'var(--accent-soft)':'#fff';
+  document.getElementById('code').placeholder=email?'6 至 8 位邮箱验证码':'6 至 8 位短信验证码';
+  document.getElementById('code-field').style.display=mode==='password'?'none':'';
+  document.getElementById('password-field').style.display=mode==='password'?'':'none';
+  document.getElementById('password-confirm-field').style.display=mode==='password'&&passwordIntent==='signup'?'':'none';
+  document.getElementById('password-actions').style.display=mode==='password'?'':'none';
+  document.getElementById('set-password-field').style.display='none';
+  document.getElementById('mode-phone').textContent='手机号';
+}
+function togglePasswordIntent(){ passwordIntent=passwordIntent==='login'?'signup':'login'; document.getElementById('password-intent').textContent=passwordIntent==='signup'?'已有账号？登录':'没有账号？注册'; setAuthMode('password'); }
 function goHome(){ location.href = APP_HOME; }
+async function loadCommunityStats(){
+  try{
+    const r=await fetch(API+'/api/bootstrap'),d=await r.json();
+    if(!r.ok || !d.ok)return;
+    document.getElementById('login-users').textContent=Number.isFinite(d.stats?.users)?d.stats.users.toLocaleString('zh-CN'):'—';
+    document.getElementById('login-events').textContent=Array.isArray(d.events)?d.events.length:'—';
+    document.getElementById('login-walls').textContent=Array.isArray(d.walls)?d.walls.length:'—';
+  }catch{}
+}
+loadCommunityStats();
 
 /* ---------- 演示模式（静态托管没有后端时启用本地账户） ---------- */
 let DEMO_MODE = false;
 let demoCode = '';
 function enableDemo(){
+  if(CLOUD_MODE) return;
   if(DEMO_MODE)return;
   DEMO_MODE=true;
   document.getElementById('demo-note').classList.add('show');
@@ -285,26 +359,105 @@ function fieldErr(wrapId, errId, msg){
 
 /* ---------- 输入校验 ---------- */
 const phoneInput=document.getElementById('phone');
-phoneInput.addEventListener('input',()=>{phoneInput.value=phoneInput.value.replace(/\D/g,'');fieldErr('phone-wrap','phone-err')});
+phoneInput.addEventListener('input',()=>{if(authMode==='phone')phoneInput.value=phoneInput.value.replace(/\D/g,'');fieldErr('phone-wrap','phone-err')});
 const codeInput=document.getElementById('code');
 codeInput.addEventListener('input',()=>{codeInput.value=codeInput.value.replace(/\D/g,'');fieldErr('code-wrap','code-err')});
 document.getElementById('agree').addEventListener('change',e=>{if(e.target.checked)fieldErr('code-wrap','code-err')});
+if(CLOUD_MODE){
+  setAuthMode('password');
+  document.querySelector('#login-card .tips').textContent='验证码会发送到你的邮箱。手机号登录需要项目开通短信服务；收不到邮件时请检查垃圾邮件。';
+  document.getElementById('login-sub').textContent='使用邮箱和密码登录，也可切换邮箱验证码';
+  if(localStorage.getItem('sf_token')==='demo-local') clearSession();
+}else{
+  // 本地后端同样支持邮箱密码登录，保留入口；无后端时提交会给出明确提示。
+}
+['phone','password','password-confirm','code'].forEach(id=>document.getElementById(id)?.addEventListener('keydown',e=>{if(e.key==='Enter')login()}));
+function clearSession(){ ['sf_token','sf_refresh_token','sf_expires_at','sf_user'].forEach(k=>localStorage.removeItem(k)); }
+function saveSession(d){
+  localStorage.setItem('sf_token',d.token);
+  if(d.refresh_token)localStorage.setItem('sf_refresh_token',d.refresh_token);
+  if(d.expires_at)localStorage.setItem('sf_expires_at',String(d.expires_at));
+  if(d.user)localStorage.setItem('sf_user',JSON.stringify(d.user));
+}
+async function cloudRefresh(){
+  const refreshToken=localStorage.getItem('sf_refresh_token');
+  if(!refreshToken) return false;
+  const response=await fetch(API+'/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:refreshToken})});
+  const d=await response.json().catch(()=>null);
+  if(response.ok && d?.ok){saveSession(d);return true;}
+  if(response.status===401){clearSession();return false;}
+  throw new Error(d?.msg || '会话刷新失败，请稍后重试');
+}
+async function restoreCloudSession(){
+  if(!localStorage.getItem('sf_token') && !localStorage.getItem('sf_refresh_token')) return;
+  try{
+    if(localStorage.getItem('sf_refresh_token') && Number(localStorage.getItem('sf_expires_at')) < Date.now()/1000+30){
+      if(!await cloudRefresh())return;
+    }
+    const read=()=>fetch(API+'/api/me',{headers:{Authorization:'Bearer '+localStorage.getItem('sf_token')}});
+    let r=await read();
+    if(r.status===401 && localStorage.getItem('sf_refresh_token')){
+      if(!await cloudRefresh()) return;
+      r=await read();
+    }
+    const d=await r.json().catch(()=>null);
+    if(r.ok && d?.ok){localStorage.setItem('sf_user',JSON.stringify(d.user));showSuccess(d.user,localStorage.getItem('sf_token'),'欢迎回来');}
+    else if(r.status===401){clearSession();toast('登录已过期，请重新获取验证码');}
+    else throw new Error(d?.msg || '暂时无法校验云端会话');
+  }catch(e){toast(e.message || '云端暂时不可用，登录资料已保留，请稍后重试');}
+}
+
+// Supabase may send a confirmation/magic link instead of a numeric OTP.
+// Consume the returned access token (or exchange token_hash) and then clean
+// the URL so a refresh does not repeat the callback.
+async function consumeAuthRedirect(){
+  if(!CLOUD_MODE) return false;
+  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+  const query=new URLSearchParams(location.search);
+  const access=hash.get('access_token');
+  const refresh=hash.get('refresh_token');
+  try{
+    if(access){
+      const r=await fetch(API+'/api/me',{headers:{Authorization:'Bearer '+access}});
+      const me=await r.json().catch(()=>null);
+      if(r.ok && me?.ok){
+        saveSession({token:access,refresh_token:refresh||undefined,expires_at:hash.get('expires_at')?Number(hash.get('expires_at')):undefined,user:me.user});
+        history.replaceState({},'',location.pathname);
+        showSuccess(me.user,access,'登录成功');
+        return true;
+      }
+    }
+    const tokenHash=query.get('token_hash') || hash.get('token_hash');
+    const code=query.get('code') || hash.get('code');
+    if(tokenHash || code){
+      const r=await fetch(API+'/api/auth/callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token_hash:tokenHash,code,type:query.get('type')||hash.get('type')||'magiclink'})});
+      const d=await r.json().catch(()=>null);
+      if(r.ok && d?.ok){
+        saveSession(d); history.replaceState({},'',location.pathname); showSuccess(d.user,d.token,'登录成功'); return true;
+      }
+      toast(d?.msg || '确认链接无效或已过期，请重新获取验证码');
+      history.replaceState({},'',location.pathname);
+    }
+  }catch(e){ toast('确认链接暂时无法打开，请返回登录页重新获取验证码'); }
+  return false;
+}
 
 /* ---------- 发送验证码 ---------- */
-let counting=false;
 async function sendCode(){
-  if(counting)return;
+  if(counting || sendInFlight || (emailQuotaBlocked && authMode==='email'))return;
   fieldErr('phone-wrap','phone-err');
   fieldErr('code-wrap','code-err');
-  const phone=phoneInput.value.trim();
-  if(!/^1[3-9]\d{9}$/.test(phone)){
-    fieldErr('phone-wrap','phone-err','请输入正确的 11 位手机号');phoneInput.focus();return;
+  const account=phoneInput.value.trim();
+  const valid=authMode==='email' ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account) : /^1[3-9]\d{9}$/.test(account);
+  if(!valid){
+    fieldErr('phone-wrap','phone-err',authMode==='email'?'请输入正确的邮箱地址':'请输入正确的 11 位手机号');phoneInput.focus();return;
   }
   if(!document.getElementById('agree').checked){
     fieldErr('code-wrap','code-err','请先勾选并同意用户协议');return;
   }
   const btn=document.getElementById('send-btn');
   btn.disabled=true;btn.textContent='发送中…';
+  sendInFlight=true;
 
   // 演示模式：本地生成验证码（无后端时）
   const localSend=()=>{
@@ -314,25 +467,48 @@ async function sendCode(){
     toast(`演示模式验证码：${demoCode}`);
     fieldErr('code-wrap','code-err',`演示模式：本次验证码为 ${demoCode}，已自动填入`);
     countdown(60);
+    sendInFlight=false;
   };
   if(DEMO_MODE){localSend();return;}
 
   try{
-    const r=await fetch(API+'/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
+    const payload=authMode==='email'?{email:account}:{phone:account};
+    const r=await fetch(API+'/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!/json/i.test(r.headers.get('content-type')||''))throw new TypeError('static-host');
     const d=await r.json();
-    if(!d.ok){throw new Error(d.msg||'发送失败')}
+    if(!d.ok){
+      const e=new Error(d.msg||'发送失败');
+      e.code=d.code; e.status=r.status; e.retry_after=d.retry_after;
+      throw e;
+    }
     // 开发模式：把验证码直接亮出来（生产环境删除此段）
-    toast(`开发模式验证码：${d.devCode}`);
-    codeInput.value=d.devCode;  // 开发模式自动填充，便于演示；生产环境删除
-    fieldErr('code-wrap','code-err',`开发模式：本次验证码为 ${d.devCode}，5 分钟内有效`);
+    if(d.devCode && !CLOUD_MODE){ toast(`开发模式验证码：${d.devCode}`); codeInput.value=d.devCode; fieldErr('code-wrap','code-err',`开发模式：本次验证码为 ${d.devCode}，5 分钟内有效`); }
+    else toast(authMode==='email'?'验证码已发送，请查收邮件':'验证码已发送，请查收短信');
     countdown(60);
+    sendInFlight=false;
   }catch(err){
-    if(err instanceof TypeError){
+    if(err instanceof TypeError && !CLOUD_MODE){
       localSend();
     }else{
-      btn.disabled=false;btn.textContent='获取验证码';
-      fieldErr('code-wrap','code-err',err.message);
+      sendInFlight=false;
+      // Older deployments may omit Supabase's machine-readable error code.
+      const rawMsg=String(err?.message||'');
+      if(!err.code && /验证码发送次数过多|email.*(?:rate|limit)|(?:rate|limit).*email/i.test(rawMsg)) err.code='over_email_send_rate_limit';
+      if(err.code==='over_email_send_rate_limit'){
+        // Project-wide quota: changing the address cannot bypass it. Keep the
+        // button disabled until a new page/session is loaded; no fake timeout.
+        emailQuotaBlocked=true;
+        btn.disabled=true; btn.textContent='邮件额度已达上限';
+      } else if(Number(err.status)===429 || err.code==='over_request_rate_limit') {
+        // Prevent a retry loop. Only show a countdown when the server supplied
+        // an explicit retry_after; never invent an unlock time for 429s.
+        const retry = Number(err.retry_after);
+        if(Number.isFinite(retry) && retry > 0) countdown(retry);
+        else { btn.disabled=true; btn.textContent='暂不可重试'; }
+      } else {
+        btn.disabled=false;btn.textContent='获取验证码';
+      }
+      fieldErr('code-wrap','code-err',err.code==='over_email_send_rate_limit'?'当前项目邮件发送额度已达上限，请在 Supabase 配置自定义 SMTP 后重试':err.message);
     }
   }
 }
@@ -349,12 +525,14 @@ function countdown(sec){
 
 /* ---------- 登录 ---------- */
 async function login(){
-  const phone=phoneInput.value.trim();
+  const account=phoneInput.value.trim();
+  if(authMode==='password') return passwordLogin(account);
   const code=codeInput.value.trim();
   fieldErr('phone-wrap','phone-err');fieldErr('code-wrap','code-err');
   let bad=false;
-  if(!/^1[3-9]\d{9}$/.test(phone)){fieldErr('phone-wrap','phone-err','请输入正确的 11 位手机号');bad=true}
-  if(!/^\d{6}$/.test(code)){fieldErr('code-wrap','code-err','请输入 6 位验证码');bad=true}
+  const valid=authMode==='email' ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account) : /^1[3-9]\d{9}$/.test(account);
+  if(!valid){fieldErr('phone-wrap','phone-err',authMode==='email'?'请输入正确的邮箱地址':'请输入正确的 11 位手机号');bad=true}
+  if(!/^\d{6,8}$/.test(code)){fieldErr('code-wrap','code-err','请输入 6 至 8 位验证码');bad=true}
   if(!document.getElementById('agree').checked){toast('请先同意用户协议');return}
   if(bad)return;
 
@@ -369,7 +547,7 @@ async function login(){
       fieldErr('code-wrap','code-err','验证码不正确，请点「获取验证码」重新获取');
       return;
     }
-    const user=demoUser(phone);
+    const user=demoUser(authMode==='phone'?account:'13800138000');
     localStorage.setItem('sf_token','demo-local');
     localStorage.setItem('sf_user',JSON.stringify(user));
     showSuccess(user,'demo-local','登录成功 · 演示模式',true);
@@ -377,15 +555,18 @@ async function login(){
   if(DEMO_MODE){localLogin();return;}
 
   try{
-    const r=await fetch(API+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,code})});
+    const payload=authMode==='email'?{email:account,code}:{phone:account,code};
+    const r=await fetch(API+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!/json/i.test(r.headers.get('content-type')||''))throw new TypeError('static-host');
     const d=await r.json();
     if(!d.ok)throw new Error(d.msg||'登录失败');
     localStorage.setItem('sf_token',d.token);
+    if(d.refresh_token) localStorage.setItem('sf_refresh_token',d.refresh_token);
+    if(d.expires_at) localStorage.setItem('sf_expires_at',String(d.expires_at));
     localStorage.setItem('sf_user',JSON.stringify(d.user));
     showSuccess(d.user,d.token,d.msg);
   }catch(err){
-    if(err instanceof TypeError){
+    if(err instanceof TypeError && !CLOUD_MODE){
       toast('未连接后端服务，已切换到演示模式');
       localLogin();
       return;
@@ -395,11 +576,43 @@ async function login(){
   }
 }
 
+async function passwordLogin(account){
+  fieldErr('phone-wrap','phone-err'); fieldErr('password-wrap','password-err'); fieldErr('password-confirm-wrap','password-confirm-err');
+  const password=document.getElementById('password').value;
+  const confirm=document.getElementById('password-confirm').value;
+  let bad=false;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)){fieldErr('phone-wrap','phone-err','请输入正确的邮箱地址');bad=true}
+  if(password.length<6){fieldErr('password-wrap','password-err','密码至少需要 6 位');bad=true}
+  if(passwordIntent==='signup' && password!==confirm){fieldErr('password-confirm-wrap','password-confirm-err','两次输入的密码不一致');bad=true}
+  if(!document.getElementById('agree').checked){toast('请先同意用户协议');return}
+  if(bad)return;
+  const btn=document.getElementById('login-btn'); if(btn.disabled)return;
+  btn.disabled=true; btn.classList.add('loading'); btn.textContent=passwordIntent==='signup'?'注册中…':'登录中…';
+  try{
+    const r=await fetch(API+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:account,password,mode:passwordIntent})});
+    const d=await r.json().catch(()=>null); if(!r.ok||!d?.ok){
+      if(d?.confirmation_required){toast(d.msg||'注册成功，请查收确认邮件后再登录');}
+      else throw new Error(d?.msg||'邮箱密码登录失败');
+      btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';return;
+    }
+    saveSession(d); showSuccess(d.user,d.token,passwordIntent==='signup'?'注册成功':'登录成功');
+  }catch(err){btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';fieldErr('password-wrap','password-err',err.message||'邮箱密码登录失败');}
+}
+
+async function setPassword(){
+  const value=document.getElementById('set-password').value; fieldErr('set-password-wrap','set-password-err');
+  if(value.length<6){fieldErr('set-password-wrap','set-password-err','密码至少需要 6 位');return;}
+  const token=localStorage.getItem('sf_token'); if(!token){toast('请先登录');return;}
+  try{const r=await fetch(API+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({mode:'set',password:value})}); const d=await r.json().catch(()=>null); if(!r.ok||!d?.ok)throw new Error(d?.msg||'保存密码失败'); toast('密码已保存，下次可使用邮箱密码登录'); document.getElementById('set-password-field').style.display='none';}
+  catch(e){fieldErr('set-password-wrap','set-password-err',e.message||'保存密码失败');}
+}
+
 /* ---------- 成功页 ---------- */
 function fillUser(u,token,isDemo){
   document.getElementById('u-nickname').textContent=u.nickname;
-  document.getElementById('u-phone').textContent=u.phone_masked;
-  document.getElementById('u-id').textContent='No.'+String(u.id).padStart(5,'0');
+  document.getElementById('u-phone').textContent=u.email || u.phone_masked || '—';
+  document.getElementById('u-phone').previousElementSibling.textContent=u.email?'邮箱':'手机号';
+  document.getElementById('u-id').textContent=u.uid || ('No.'+String(u.id).padStart(5,'0'));
   document.getElementById('u-created').textContent=new Date(u.created_at).toLocaleString('zh-CN');
   document.getElementById('u-token').textContent=isDemo?'本地会话（无需服务器）':String(token).slice(0,20)+'…';
 }
@@ -411,6 +624,7 @@ function showSuccess(user,token,msg,isDemo){
     ? '账户保存在这台设备的浏览器里，随时可以进主站用'
     : '下面是你的账户信息（来自 /api/me 实时校验）';
   fillUser(user,token,isDemo);
+  document.getElementById('set-password-field').style.display=(!isDemo && user?.email)?'':'none';
   if(isDemo)return;
   fetch(API+'/api/me',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json())
@@ -420,6 +634,7 @@ function showSuccess(user,token,msg,isDemo){
 
 /* ---------- 进入页面：本地会话 / 探测后端 / 自动展示账户页 ---------- */
 (async function(){
+  if(CLOUD_MODE){if(await consumeAuthRedirect())return; await restoreCloudSession();return;}
   const t=localStorage.getItem('sf_token');
 
   // 1) 已有本地演示会话 → 直接进账户页
@@ -436,21 +651,30 @@ function showSuccess(user,token,msg,isDemo){
     const p=await fetch(API+'/api/bootstrap');
     backendOK=/json/i.test(p.headers.get('content-type')||'');
   }catch(e){backendOK=false;}
-  if(!backendOK){
+  if(!backendOK && !CLOUD_MODE){
     localStorage.removeItem('sf_token');
     localStorage.removeItem('sf_user');
     enableDemo();
+    return;
+  }
+  if(!backendOK && CLOUD_MODE){
+    toast('云端服务暂时不可用，请稍后重试');
     return;
   }
   if(!t)return;
 
   // 3) 有服务端会话 → 校验并展示
   try{
-    const r=await fetch(API+'/api/me',{headers:{'Authorization':'Bearer '+t}});
+    let r=await fetch(API+'/api/me',{headers:{'Authorization':'Bearer '+t}});
     const d=await r.json();
     if(d.ok){showSuccess(d.user,t,'欢迎回来')}
-    else{localStorage.removeItem('sf_token');localStorage.removeItem('sf_user')}
-  }catch(e){}
+    else if(r.status===401 && CLOUD_MODE && localStorage.getItem('sf_refresh_token')) {
+      const rr=await fetch(API+'/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:localStorage.getItem('sf_refresh_token')})});
+      const rd=await rr.json();
+      if(rd.ok){localStorage.setItem('sf_token',rd.token);if(rd.refresh_token)localStorage.setItem('sf_refresh_token',rd.refresh_token);if(rd.expires_at)localStorage.setItem('sf_expires_at',String(rd.expires_at));localStorage.setItem('sf_user',JSON.stringify(rd.user));showSuccess(rd.user,rd.token,'欢迎回来')}
+      else {localStorage.removeItem('sf_token');localStorage.removeItem('sf_refresh_token');localStorage.removeItem('sf_user')}
+    } else if(r.status===401){localStorage.removeItem('sf_token');localStorage.removeItem('sf_refresh_token');localStorage.removeItem('sf_user')}
+  }catch(e){if(CLOUD_MODE) toast('云端会话校验失败，请稍后重试')}
 })();
 
 /* ---------- 切换账号 ---------- */
@@ -460,6 +684,8 @@ async function backToLogin(){
     try{await fetch(API+'/api/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+token}});}catch(e){}
   }
   localStorage.removeItem('sf_token');
+  localStorage.removeItem('sf_refresh_token');
+  localStorage.removeItem('sf_expires_at');
   localStorage.removeItem('sf_user');
   document.getElementById('success-card').style.display='none';
   document.getElementById('login-card').style.display='block';

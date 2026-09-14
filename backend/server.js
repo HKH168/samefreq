@@ -147,6 +147,9 @@ addColumn('users', 'avatar', `TEXT NOT NULL DEFAULT '🎧'`);
 addColumn('users', 'signature', `TEXT NOT NULL DEFAULT '在看演出的路上，顺便找个人一起。'`);
 addColumn('users', 'school', `TEXT NOT NULL DEFAULT '原力大学'`);
 addColumn('users', 'city', `TEXT NOT NULL DEFAULT '原力城市'`);
+addColumn('users', 'email', 'TEXT');
+addColumn('users', 'password_hash', 'TEXT');
+try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL'); } catch {}
 addColumn('walls', 'owner_id', 'INTEGER');
 addColumn('walls', 'slogan', `TEXT NOT NULL DEFAULT ''`);
 addColumn('walls', 'grad', `TEXT NOT NULL DEFAULT '["#4A3878","#9B7EDE"]'`);
@@ -335,6 +338,16 @@ async function handleSendCode(req, res) {
   return json(res, 200, { ok: true, msg: '验证码已发送', devCode: code, ttl: 300 });
 }
 
+async function handlePassword(req, res) {
+  const b = await readBody(req), email = String(b.email || '').trim().toLowerCase(), password = String(b.password || ''), mode = b.mode === 'signup' ? 'signup' : 'login';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 6) return json(res, 400, {ok:false, msg:'请输入正确邮箱和至少 6 位密码'});
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const hash = crypto.createHash('sha256').update(password).digest('hex');
+  if (mode === 'signup') { if (user) return json(res, 409, {ok:false,msg:'该邮箱已注册'}); const now=nowStr(); const r=db.prepare('INSERT INTO users (phone,nickname,email,password_hash,created_at,last_login_at) VALUES (?,?,?,?,?,?)').run('email:'+email, email.split('@')[0], email, hash, now, now); user=db.prepare('SELECT * FROM users WHERE id=?').get(r.lastInsertRowid); }
+  else if (!user || user.password_hash !== hash) return json(res, 401, {ok:false,msg:'邮箱或密码错误'});
+  db.prepare('UPDATE users SET last_login_at=? WHERE id=?').run(nowStr(), user.id); const token=crypto.randomBytes(32).toString('hex'); db.prepare('INSERT INTO sessions VALUES (?,?,?,?)').run(token,user.id,Date.now()+30*86400000,nowStr()); return json(res,200,{ok:true,token,user:{id:user.id,email:user.email,nickname:user.nickname}});
+}
+
 async function handleVerify(req, res) {
   const { phone, code } = await readBody(req);
   if (!isPhone(phone)) return json(res, 400, { ok: false, msg: '手机号格式不正确' });
@@ -370,7 +383,9 @@ async function handleVerify(req, res) {
     ok: true,
     msg: isNew ? '注册成功，欢迎加入乐遇同频' : '欢迎回来',
     token,
-    user: { id: user.id, phone: user.phone, nickname: user.nickname, created_at: user.created_at },
+    user: { id: user.id, phone: user.phone, nickname: user.nickname, avatar: user.avatar,
+            signature: user.signature, school: user.school, city: user.city,
+            uid: 'TP' + String(user.id).padStart(8, '0'), created_at: user.created_at },
   });
 }
 
@@ -815,9 +830,20 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(fs.readFileSync(path.join(ROOT, 'login.html')));
     }
+    if (req.method === 'GET' && p === '/runtime-config.js') {
+      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(process.env.SF_API_BASE
+        ? `window.SF_API_BASE = ${JSON.stringify(process.env.SF_API_BASE)};`
+        : fs.readFileSync(path.join(ROOT, 'runtime-config.js')));
+    }
+    if (req.method === 'GET' && p === '/_auth_source.ts') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(fs.readFileSync(path.join(ROOT, 'supabase/functions/samefreq/auth.ts')));
+    }
 
     /* ---------- 认证 ---------- */
     if (p === '/api/auth/send-code' && req.method === 'POST') return await handleSendCode(req, res);
+    if (p === '/api/auth/password' && req.method === 'POST') return await handlePassword(req, res);
     if (p === '/api/auth/verify' && req.method === 'POST') return await handleVerify(req, res);
     if (p === '/api/auth/logout' && req.method === 'POST') {
       const auth = getAuth(req);
@@ -830,6 +856,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         user: { id: auth.id, phone: auth.phone, nickname: auth.nickname,
+                avatar: auth.avatar, signature: auth.signature, school: auth.school,
+                city: auth.city, uid: 'TP' + String(auth.id).padStart(8, '0'),
                 phone_masked: maskPhone(auth.phone), created_at: auth.created_at },
       });
     }
