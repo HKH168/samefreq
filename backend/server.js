@@ -1,5 +1,5 @@
 /**
- * 同频 SAME FREQ — 完整网站后端（主站 + 登录 + 数据库）
+ * 乐遇同频 — 完整网站后端（主站 + 登录 + 数据库）
  * 技术栈：Node.js 原生 http + 内置 SQLite（node:sqlite），零第三方依赖
  *
  * 路由总览：
@@ -143,6 +143,7 @@ function addColumn(table, col, def) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
   if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
 }
+addColumn('users', 'cover', `TEXT NOT NULL DEFAULT ''`);
 addColumn('users', 'avatar', `TEXT NOT NULL DEFAULT '🎧'`);
 addColumn('users', 'signature', `TEXT NOT NULL DEFAULT '在看演出的路上，顺便找个人一起。'`);
 addColumn('users', 'school', `TEXT NOT NULL DEFAULT '原力大学'`);
@@ -275,7 +276,7 @@ function readBody(req) {
     let raw = '';
     req.on('data', (c) => {
       raw += c;
-      if (raw.length > 64 * 1024) { reject(new Error('body too large')); req.destroy(); }
+      if (raw.length > 2 * 1024 * 1024) { reject(new Error('body too large')); req.destroy(); }
     });
     req.on('end', () => {
       try { resolve(raw ? JSON.parse(raw) : {}); }
@@ -346,7 +347,7 @@ async function handleVerify(req, res) {
       `INSERT INTO users (phone, nickname, created_at, last_login_at) VALUES (?, ?, ?, ?)`
     ).run(phone, genNickname(), nowStr(), nowStr());
     user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(info.lastInsertRowid);
-    notify(user.id, 'system', '欢迎加入同频 🎧', '先去看看附近的演出，或者发布一条搭子招募试试？');
+    notify(user.id, 'system', '欢迎加入乐遇同频 🎧', '先去看看附近的演出，或者发布一条搭子招募试试？');
   } else {
     db.prepare(`UPDATE users SET last_login_at = ? WHERE id = ?`).run(nowStr(), user.id);
   }
@@ -358,7 +359,7 @@ async function handleVerify(req, res) {
 
   return json(res, 200, {
     ok: true,
-    msg: isNew ? '注册成功，欢迎加入同频' : '欢迎回来',
+    msg: isNew ? '注册成功，欢迎加入乐遇同频' : '欢迎回来',
     token,
     user: { id: user.id, phone: user.phone, nickname: user.nickname, created_at: user.created_at },
   });
@@ -369,7 +370,7 @@ function getAuth(req) {
   const m = h.match(/^Bearer\s+(\S+)$/i);
   if (!m) return null;
   return db.prepare(
-    `SELECT s.token, s.expires_at, u.id, u.phone, u.nickname, u.created_at, u.avatar, u.signature, u.school, u.city
+    `SELECT s.token, s.expires_at, u.id, u.phone, u.nickname, u.created_at, u.avatar, u.cover, u.signature, u.school, u.city
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = ? AND s.expires_at > ?`).get(m[1], Date.now()) || null;
 }
@@ -674,7 +675,7 @@ function handleProfile(req, res) {
   return json(res, 200, {
     ok: true,
     user: {
-      id: auth.id, nickname: auth.nickname, avatar: auth.avatar, signature: auth.signature,
+      id: auth.id, nickname: auth.nickname, avatar: auth.avatar, cover: auth.cover, signature: auth.signature,
       school: auth.school, city: auth.city,
       phone_masked: maskPhone(auth.phone), created_at: auth.created_at,
       uid: 'TP' + String(auth.id).padStart(8, '0'),
@@ -702,7 +703,15 @@ async function handleUpdateProfile(req, res) {
   put('signature', b.signature, 60);
   put('school', b.school, 20);
   put('city', b.city, 20);
-  put('avatar', b.avatar, 4);
+  for (const field of ['avatar', 'cover']) {
+    if (b[field] === undefined) continue;
+    const value = String(b[field]);
+    const isPhoto = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+    if (value.length > 700000 || (!isPhoto && !(field === 'cover' && value === '') && !(field === 'avatar' && value.length <= 16 && !/[<>]/.test(value)))) {
+      return json(res, 400, { ok: false, msg: '请选择有效照片，图片压缩后须小于 500 KB' });
+    }
+    put(field, value, 700000);
+  }
 
   if (!fields.length) return json(res, 400, { ok: false, msg: '没有要修改的内容' });
   vals.push(auth.id);
@@ -712,7 +721,7 @@ async function handleUpdateProfile(req, res) {
   return json(res, 200, {
     ok: true, msg: '资料已更新',
     user: {
-      id: u.id, nickname: u.nickname, avatar: u.avatar, signature: u.signature,
+      id: u.id, nickname: u.nickname, avatar: u.avatar, cover: u.cover, signature: u.signature,
       school: u.school, city: u.city, phone_masked: maskPhone(u.phone),
       created_at: u.created_at, uid: 'TP' + String(u.id).padStart(8, '0'),
     },
@@ -820,7 +829,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  同频 SAME FREQ 完整服务已启动`);
+  console.log(`\n  乐遇同频 完整服务已启动`);
   console.log(`  ➜ 主站       http://localhost:${PORT}`);
   console.log(`  ➜ 登录页     http://localhost:${PORT}/login.html`);
   console.log(`  ➜ 数据库     ${DB_PATH}`);

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>页面走丢了 · 乐遇同频</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:28px;
+    font-family:"PingFang SC","Microsoft YaHei",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:linear-gradient(150deg,#33284E,#4A3878 55%,#6C4AB6);color:#EFEAFB;text-align:center;
+  }
+  .box{max-width:360px;width:100%}
+  .em{font-size:60px;line-height:1;margin-bottom:16px}
+  h1{font-size:22px;letter-spacing:1px;margin-bottom:10px}
+  p{font-size:13px;line-height:1.85;opacity:.78}
+  code{background:rgba(255,255,255,.14);padding:2px 6px;border-radius:5px;font-size:12px}
+  a.btn{
+    display:block;margin-top:24px;padding:14px;border-radius:14px;text-decoration:none;
+    background:linear-gradient(120deg,#E85A8A,#9B7EDE);color:#fff;font-weight:700;font-size:15px;letter-spacing:2px;
+    box-shadow:0 8px 24px rgba(0,0,0,.28);
+  }
+  .hint{margin-top:16px;font-size:11.5px;opacity:.55;line-height:1.8}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="em">🎫</div>
+    <h1>这个页面走丢了</h1>
+    <p>你要找的地址不存在，可能少了 <code>.html</code>，也可能链接复制错了。<br>3 秒后自动带你回首页。</p>
+    <a class="btn" id="home" href="./">返回乐遇同频首页 ›</a>
+    <div class="hint">演出雷达 · 搭子广场 · idol 应援墙</div>
+  </div>
+<script>
+  (function () {
+    // 站点可能部署在 /samefreq/ 这样的子路径下，取第一段路径回首页
+    var seg = location.pathname.split('/').filter(Boolean)[0];
+    var home = '/' + (seg ? seg + '/' : '');
+    var a = document.getElementById('home');
+    a.href = home;
+    a.textContent = '返回乐遇同频首页 ›';
+    setTimeout(function () { location.replace(home); }, 3000);
+  })();
+</script>
+</body>
+</html>

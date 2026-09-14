@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#33284E">
-<title>登录 · 同频 SAME FREQ</title>
+<title>登录 · 乐遇同频</title>
 <style>
 :root{
   --ink:#1D1730; --ink-2:#4A4160; --ink-soft:#7A7290; --ink-mute:#A69FBB;
@@ -32,6 +32,17 @@ button,input{font-family:inherit;color:inherit}
   }
   .phone::after{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:96px;height:24px;border-radius:14px;background:#150F1F;z-index:30;pointer-events:none}
 }
+
+/* iPhone 状态栏（仅桌面手机模型显示，登录页为深色底 → 白字） */
+.statusbar{
+  display:none;position:absolute;top:0;left:0;right:0;height:44px;z-index:20;
+  padding:0 27px;align-items:center;justify-content:space-between;
+  font-size:13.5px;font-weight:700;color:#EFEAFB;letter-spacing:.2px;
+  pointer-events:none;font-variant-numeric:tabular-nums;
+}
+@media(min-width:560px){ .statusbar{display:flex} }
+.statusbar .sb-right{display:flex;align-items:center;gap:5.5px}
+.statusbar svg{display:block}
 
 /* 顶部品牌条 */
 .brandbar{
@@ -123,14 +134,44 @@ button,input{font-family:inherit;color:inherit}
   opacity:0;z-index:99;max-width:86%;text-align:center;
 }
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* 演示模式提示条 */
+.demo-note{
+  display:none;margin-bottom:18px;padding:11px 13px;border-radius:12px;font-size:11.5px;line-height:1.75;
+  background:#EDF7F2;color:#22684F;border:1.5px solid #BFE3D2;
+}
+.demo-note.show{display:block}
+.demo-note b{font-weight:700}
 </style>
 </head>
 <body>
 
 <div class="phone">
 
+  <div class="statusbar">
+    <span id="sb-time">9:41</span>
+    <span class="sb-right">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true">
+        <rect x="0" y="7.4" width="3" height="3.6" rx="1"/>
+        <rect x="4.6" y="5.4" width="3" height="5.6" rx="1"/>
+        <rect x="9.2" y="2.9" width="3" height="8.1" rx="1"/>
+        <rect x="13.8" y="0.4" width="3" height="10.6" rx="1"/>
+      </svg>
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
+        <path d="M8 10.7 5.1 7.4a4.3 4.3 0 0 1 5.8 0L8 10.7Z"/>
+        <path d="M8 5.1c1.75 0 3.35.62 4.6 1.72l1.3-1.5A9.55 9.55 0 0 0 8 2.85 9.55 9.55 0 0 0 2.1 5.32l1.3 1.5A6.85 6.85 0 0 1 8 5.1Z"/>
+        <path d="M8 .8c2.95 0 5.66 1.1 7.72 2.92l-1.2 1.4A9.1 9.1 0 0 0 8 2.85 9.1 9.1 0 0 0 1.48 5.12L.28 3.72A10.9 10.9 0 0 1 8 .8Z" fill-opacity=".55"/>
+      </svg>
+      <svg width="26" height="12" viewBox="0 0 26 12" fill="none" aria-hidden="true">
+        <rect x=".65" y=".65" width="21.2" height="10.7" rx="3.4" stroke="currentColor" stroke-opacity=".45" stroke-width="1.3"/>
+        <rect x="2.5" y="2.5" width="15.4" height="7" rx="2" fill="currentColor"/>
+        <path d="M23.5 4v4c1.15-.42 1.75-1.05 1.75-2s-.6-1.58-1.75-2Z" fill="currentColor" fill-opacity=".45"/>
+      </svg>
+    </span>
+  </div>
+
   <div class="brandbar">
-    <div class="logo"><span class="dot">🎵</span>同频 SAME FREQ</div>
+    <div class="logo"><span class="dot">🎵</span>乐遇同频</div>
     <h1>看演出这件事，<br><em>不该一个人去。</em></h1>
     <p>找到同校一起冲那场演唱会的人，认识全校和你听同一位歌手的人。</p>
     <div class="bstats">
@@ -143,6 +184,9 @@ button,input{font-family:inherit;color:inherit}
   <div class="body">
     <!-- ===== 登录表单 ===== -->
     <div class="card" id="login-card">
+      <div class="demo-note" id="demo-note">
+        📱 <b>演示模式</b>：这是纯静态线上版，没有后端服务器，账户与数据保存在你自己的浏览器里（换设备或清缓存会重置）。点「获取验证码」会直接给出验证码，自动填入即可登录。
+      </div>
       <h2>手机号登录</h2>
       <p class="sub">首次登录自动注册 · 仅支持在校生手机号</p>
 
@@ -182,7 +226,7 @@ button,input{font-family:inherit;color:inherit}
     <div class="card success" id="success-card">
       <div class="check">✓</div>
       <h2 id="s-title">登录成功</h2>
-      <p class="sub2" id="s-sub">欢迎加入同频</p>
+      <p class="sub2" id="s-sub">欢迎加入乐遇同频</p>
       <div class="user-box">
         <div class="row"><span>昵称</span><span id="u-nickname">—</span></div>
         <div class="row"><span>手机号</span><span id="u-phone">—</span></div>
@@ -190,7 +234,7 @@ button,input{font-family:inherit;color:inherit}
         <div class="row"><span>注册时间</span><span id="u-created">—</span></div>
         <div class="row"><span>会话令牌</span><span id="u-token" style="font-size:10.5px">—</span></div>
       </div>
-      <button class="ghost" style="border:none;background:linear-gradient(120deg,#6C4AB6,#E85A8A);color:#fff;margin-bottom:10px;font-weight:700" onclick="goHome()">进入同频主站 →</button>
+      <button class="ghost" style="border:none;background:linear-gradient(120deg,#6C4AB6,#E85A8A);color:#fff;margin-bottom:10px;font-weight:700" onclick="goHome()">进入乐遇同频主站 →</button>
       <button class="ghost" onclick="backToLogin()">切换其他账号</button>
     </div>
   </div>
@@ -199,10 +243,33 @@ button,input{font-family:inherit;color:inherit}
 </div>
 
 <script>
-// 同源部署时用当前域名；若直接双击本地文件打开（file://），自动回退到本地后端
-const API = /^https?:$/.test(location.protocol) ? location.origin : 'http://localhost:3000';
-const APP_HOME = (/^https?:$/.test(location.protocol) ? '' : 'http://localhost:3000') + '/';
+// 站在当前目录下（兼容 GitHub Pages 的 /samefreq/ 子路径）；file:// 打开时回退到本地后端
+const BASE = /^https?:$/.test(location.protocol)
+  ? location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '')
+  : 'http://localhost:3000';
+const API = BASE;
+const APP_HOME = BASE + '/';
 function goHome(){ location.href = APP_HOME; }
+
+/* ---------- 演示模式（静态托管没有后端时启用本地账户） ---------- */
+let DEMO_MODE = false;
+let demoCode = '';
+function enableDemo(){
+  if(DEMO_MODE)return;
+  DEMO_MODE=true;
+  document.getElementById('demo-note').classList.add('show');
+  document.getElementById('send-btn').textContent='获取验证码';
+}
+function demoUser(phone){
+  return {
+    id: Number(phone.slice(-5)),
+    nickname: '乐遇同学' + phone.slice(-4),
+    avatar: '🎧', signature: '', school: '原力大学', city: '原力城市',
+    uid: 'T' + phone.slice(-6),
+    phone_masked: phone.slice(0,3) + '****' + phone.slice(-4),
+    created_at: new Date().toISOString(),
+  };
+}
 
 /* ---------- 提示 ---------- */
 function toast(msg){
@@ -238,8 +305,21 @@ async function sendCode(){
   }
   const btn=document.getElementById('send-btn');
   btn.disabled=true;btn.textContent='发送中…';
+
+  // 演示模式：本地生成验证码（无后端时）
+  const localSend=()=>{
+    enableDemo();
+    demoCode=String(Math.floor(100000+Math.random()*900000));
+    codeInput.value=demoCode;
+    toast(`演示模式验证码：${demoCode}`);
+    fieldErr('code-wrap','code-err',`演示模式：本次验证码为 ${demoCode}，已自动填入`);
+    countdown(60);
+  };
+  if(DEMO_MODE){localSend();return;}
+
   try{
     const r=await fetch(API+'/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
+    if(!/json/i.test(r.headers.get('content-type')||''))throw new TypeError('static-host');
     const d=await r.json();
     if(!d.ok){throw new Error(d.msg||'发送失败')}
     // 开发模式：把验证码直接亮出来（生产环境删除此段）
@@ -248,11 +328,10 @@ async function sendCode(){
     fieldErr('code-wrap','code-err',`开发模式：本次验证码为 ${d.devCode}，5 分钟内有效`);
     countdown(60);
   }catch(err){
-    btn.disabled=false;btn.textContent='获取验证码';
     if(err instanceof TypeError){
-      fieldErr('code-wrap','code-err',`连不上后端服务，请确认已运行 node server.js（当前地址 ${API}）`);
-      toast('连不上后端服务，请先启动 server.js');
+      localSend();
     }else{
+      btn.disabled=false;btn.textContent='获取验证码';
       fieldErr('code-wrap','code-err',err.message);
     }
   }
@@ -281,48 +360,91 @@ async function login(){
 
   const btn=document.getElementById('login-btn');
   btn.disabled=true;btn.classList.add('loading');btn.textContent='验证中…';
+
+  // 演示模式：本地账户登录
+  const localLogin=()=>{
+    enableDemo();
+    if(demoCode && code!==demoCode){
+      btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';
+      fieldErr('code-wrap','code-err','验证码不正确，请点「获取验证码」重新获取');
+      return;
+    }
+    const user=demoUser(phone);
+    localStorage.setItem('sf_token','demo-local');
+    localStorage.setItem('sf_user',JSON.stringify(user));
+    showSuccess(user,'demo-local','登录成功 · 演示模式',true);
+  };
+  if(DEMO_MODE){localLogin();return;}
+
   try{
     const r=await fetch(API+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,code})});
+    if(!/json/i.test(r.headers.get('content-type')||''))throw new TypeError('static-host');
     const d=await r.json();
     if(!d.ok)throw new Error(d.msg||'登录失败');
     localStorage.setItem('sf_token',d.token);
     localStorage.setItem('sf_user',JSON.stringify(d.user));
     showSuccess(d.user,d.token,d.msg);
   }catch(err){
-    btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';
     if(err instanceof TypeError){
-      fieldErr('code-wrap','code-err',`连不上后端服务，请确认已运行 node server.js（当前地址 ${API}）`);
-      toast('连不上后端服务，请先启动 server.js');
-    }else{
-      fieldErr('code-wrap','code-err',err.message);
+      toast('未连接后端服务，已切换到演示模式');
+      localLogin();
+      return;
     }
+    btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';
+    fieldErr('code-wrap','code-err',err.message);
   }
 }
 
 /* ---------- 成功页 ---------- */
-function showSuccess(user,token,msg){
+function fillUser(u,token,isDemo){
+  document.getElementById('u-nickname').textContent=u.nickname;
+  document.getElementById('u-phone').textContent=u.phone_masked;
+  document.getElementById('u-id').textContent='No.'+String(u.id).padStart(5,'0');
+  document.getElementById('u-created').textContent=new Date(u.created_at).toLocaleString('zh-CN');
+  document.getElementById('u-token').textContent=isDemo?'本地会话（无需服务器）':String(token).slice(0,20)+'…';
+}
+function showSuccess(user,token,msg,isDemo){
   document.getElementById('login-card').style.display='none';
   document.getElementById('success-card').style.display='block';
   document.getElementById('s-title').textContent=msg||'登录成功';
-  document.getElementById('s-sub').textContent='下面是你的账户信息（来自 /api/me 实时校验）';
+  document.getElementById('s-sub').textContent=isDemo
+    ? '账户保存在这台设备的浏览器里，随时可以进主站用'
+    : '下面是你的账户信息（来自 /api/me 实时校验）';
+  fillUser(user,token,isDemo);
+  if(isDemo)return;
   fetch(API+'/api/me',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json())
-    .then(d=>{
-      if(!d.ok)throw new Error();
-      const u=d.user;
-      document.getElementById('u-nickname').textContent=u.nickname;
-      document.getElementById('u-phone').textContent=u.phone_masked;
-      document.getElementById('u-id').textContent='No.'+String(u.id).padStart(5,'0');
-      document.getElementById('u-created').textContent=new Date(u.created_at).toLocaleString('zh-CN');
-      document.getElementById('u-token').textContent=token.slice(0,20)+'…';
-    })
+    .then(d=>{ if(!d.ok)throw new Error(); fillUser(d.user,token,false); })
     .catch(()=>toast('会话校验失败，请重新登录'));
 }
 
-/* ---------- 已登录则直接展示账户页 ---------- */
+/* ---------- 进入页面：本地会话 / 探测后端 / 自动展示账户页 ---------- */
 (async function(){
   const t=localStorage.getItem('sf_token');
+
+  // 1) 已有本地演示会话 → 直接进账户页
+  if(t==='demo-local'){
+    let u=null;
+    try{u=JSON.parse(localStorage.getItem('sf_user')||'null')}catch(e){}
+    if(u){enableDemo();showSuccess(u,t,'欢迎回来 · 演示模式',true);return;}
+    localStorage.removeItem('sf_token');
+  }
+
+  // 2) 探测后端：静态托管（GitHub Pages）会把 /api/* 当成不存在的文件返回 HTML
+  let backendOK=false;
+  try{
+    const p=await fetch(API+'/api/bootstrap');
+    backendOK=/json/i.test(p.headers.get('content-type')||'');
+  }catch(e){backendOK=false;}
+  if(!backendOK){
+    localStorage.removeItem('sf_token');
+    localStorage.removeItem('sf_user');
+    enableDemo();
+    return;
+  }
   if(!t)return;
+
+  // 3) 有服务端会话 → 校验并展示
   try{
     const r=await fetch(API+'/api/me',{headers:{'Authorization':'Bearer '+t}});
     const d=await r.json();
@@ -346,6 +468,16 @@ async function backToLogin(){
   btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';
   toast('已退出登录，可以换个账号');
 }
+
+/* ---------- 手机模型状态栏时钟 ---------- */
+function tickClock(){
+  const el=document.getElementById('sb-time');
+  if(!el)return;
+  const d=new Date();
+  el.textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tickClock();
+setInterval(tickClock,20000);
 </script>
 </body>
 </html>

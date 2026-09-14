@@ -1,5 +1,9 @@
 node_modules/
 *.db
 _check.js
+_chk_*.js
+_shot_*.png
+_login.json
+_test*.js
 Thumbs.db
 .DS_Store
