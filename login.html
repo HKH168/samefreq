@@ -273,6 +273,7 @@ button,input{font-family:inherit;color:inherit}
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="runtime-config.js"></script>
 <script>
 // 已部署的公开 API 默认地址；旧的本地服务即使尚未提供 runtime-config.js，也可直接连接云端。
 window.SF_API_BASE = window.SF_API_BASE ?? document.querySelector('meta[name="sf-api-base"]')?.content ?? 'https://kgnbewbcitdjzumakbub.supabase.co/functions/v1/samefreq';
@@ -289,12 +290,26 @@ const SITE_BASE = /^https?:$/.test(location.protocol)
   : 'http://localhost:3000';
 const APP_HOME = SITE_BASE + '/';
 const CLOUD_MODE = !!CONFIGURED_API;
+const AUTH_URL = String(window.SF_AUTH_URL || (CONFIGURED_API.match(/^https:\/\/[^/]+/) || [''])[0]).replace(/\/$/, '');
+const PUBLIC_KEY = String(window.SF_PUBLIC_KEY || '');
 let authMode = 'phone';
 let passwordIntent = 'login';
 let counting=false;
 let sendInFlight=false;
 let emailQuotaBlocked=false;
+
+async function directPasswordAuth(email,password,mode){
+  if(!AUTH_URL || !PUBLIC_KEY) throw new Error('认证服务配置不完整');
+  const endpoint=mode==='signup'?'/auth/v1/signup':'/auth/v1/token?grant_type=password';
+  const r=await fetch(AUTH_URL+endpoint,{method:'POST',headers:{'Content-Type':'application/json',apikey:PUBLIC_KEY},body:JSON.stringify({email,password})});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok){ const msg=d?.msg||d?.error_description||d?.message; throw new Error(msg||'邮箱或密码错误'); }
+  if(!d?.access_token){ if(mode==='signup' && d?.user) return {confirmation_required:true,msg:'注册成功，请查收邮箱完成确认后再登录'}; throw new Error('登录未返回有效会话'); }
+  const u=d.user||{};
+  return {ok:true,token:d.access_token,refresh_token:d.refresh_token,expires_at:d.expires_at,user:{id:u.id,email:u.email,nickname:u.user_metadata?.nickname||'乐遇同学',avatar:'🎧',signature:'',school:'原力大学',city:'原力城市',uid:'TP'+String(u.id||'').slice(0,8),created_at:u.created_at||new Date().toISOString()}};
+}
 function setAuthMode(mode){
+  if((mode==='email' || mode==='password') && !CLOUD_MODE) return;
   authMode=mode;
   const email=mode==='email' || mode==='password', input=document.getElementById('phone');
   input.type=email?'email':'tel'; input.maxLength=email?120:11; input.placeholder=email?'请输入邮箱地址':'请输入 11 位手机号'; input.autocomplete=email?'email':'tel';
@@ -369,7 +384,8 @@ if(CLOUD_MODE){
   document.getElementById('login-sub').textContent='使用邮箱和密码登录，也可切换邮箱验证码';
   if(localStorage.getItem('sf_token')==='demo-local') clearSession();
 }else{
-  // 本地后端同样支持邮箱密码登录，保留入口；无后端时提交会给出明确提示。
+  document.getElementById('mode-email').hidden=true;
+  document.getElementById('mode-password').hidden=true;
 }
 ['phone','password','password-confirm','code'].forEach(id=>document.getElementById(id)?.addEventListener('keydown',e=>{if(e.key==='Enter')login()}));
 function clearSession(){ ['sf_token','sf_refresh_token','sf_expires_at','sf_user'].forEach(k=>localStorage.removeItem(k)); }
@@ -589,8 +605,10 @@ async function passwordLogin(account){
   const btn=document.getElementById('login-btn'); if(btn.disabled)return;
   btn.disabled=true; btn.classList.add('loading'); btn.textContent=passwordIntent==='signup'?'注册中…':'登录中…';
   try{
-    const r=await fetch(API+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:account,password,mode:passwordIntent})});
-    const d=await r.json().catch(()=>null); if(!r.ok||!d?.ok){
+    let r=await fetch(API+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:account,password,mode:passwordIntent})});
+    let d=await r.json().catch(()=>null);
+    if(r.status===404 && CLOUD_MODE){ d=await directPasswordAuth(account,password,passwordIntent); r={ok:true,status:200}; }
+    if(!r.ok||!d?.ok){
       if(d?.confirmation_required){toast(d.msg||'注册成功，请查收确认邮件后再登录');}
       else throw new Error(d?.msg||'邮箱密码登录失败');
       btn.disabled=false;btn.classList.remove('loading');btn.textContent='登 录';return;
