@@ -222,6 +222,7 @@ button,input{font-family:inherit;color:inherit}
       <div id="password-actions" style="display:none;text-align:right;margin:-4px 0 14px;font-size:12px;color:var(--ink-soft)">
         <button type="button" class="ghost" id="password-intent" onclick="togglePasswordIntent()" style="border:none;padding:2px 0;color:var(--accent)">没有账号？注册</button>
       </div>
+      <div id="demo-account-hint" style="display:none;margin:-4px 0 12px;color:var(--ink-soft);font-size:11px">演示账号：demo@chijmqhkh.space　密码：Demo123456</div>
 
       <div class="field" id="code-field">
         <label>验证码</label>
@@ -323,6 +324,7 @@ function setAuthMode(mode){
   document.getElementById('password-field').style.display=mode==='password'?'':'none';
   document.getElementById('password-confirm-field').style.display=mode==='password'&&passwordIntent==='signup'?'':'none';
   document.getElementById('password-actions').style.display=mode==='password'?'':'none';
+  document.getElementById('demo-account-hint').style.display=mode==='password'?'':'none';
   document.getElementById('set-password-field').style.display='none';
   document.getElementById('mode-phone').textContent='手机号';
 }
@@ -601,6 +603,11 @@ async function passwordLogin(account){
   if(passwordIntent==='signup' && password!==confirm){fieldErr('password-confirm-wrap','password-confirm-err','两次输入的密码不一致');bad=true}
   if(!document.getElementById('agree').checked){toast('请先同意用户协议');return}
   if(bad)return;
+  // 公开演示账号：不依赖邮件确认，登录后使用完整本地演示引擎。
+  if(account==='demo@chijmqhkh.space' && password==='Demo123456'){
+    const demo=demoUser('13103966090'); demo.email=account; demo.nickname='演示同学'; demo.uid='DEMO2026';
+    saveSession({token:'demo-local',user:demo}); enableDemo(); showSuccess(demo,'demo-local','演示账号登录成功',true); return;
+  }
   const btn=document.getElementById('login-btn'); if(btn.disabled)return;
   btn.disabled=true; btn.classList.add('loading'); btn.textContent=passwordIntent==='signup'?'注册中…':'登录中…';
   try{
