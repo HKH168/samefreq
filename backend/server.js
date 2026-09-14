@@ -41,7 +41,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.join(__dirname, '..');
-const DB_PATH = path.join(__dirname, 'tongpin.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'tongpin.db');
 
 /* ================================================================
  * 数据库
@@ -143,7 +143,6 @@ function addColumn(table, col, def) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
   if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
 }
-addColumn('users', 'cover', `TEXT NOT NULL DEFAULT ''`);
 addColumn('users', 'avatar', `TEXT NOT NULL DEFAULT '🎧'`);
 addColumn('users', 'signature', `TEXT NOT NULL DEFAULT '在看演出的路上，顺便找个人一起。'`);
 addColumn('users', 'school', `TEXT NOT NULL DEFAULT '原力大学'`);
@@ -215,6 +214,9 @@ function seed() {
       ['新裤子', '🕺', 189, 0, '你要跳舞吗？一起把 Livehouse 掀了。'],
       ['万能青年旅店', '🎺', 214, 1, '冀西南林路行的尽头，我们都在这里。'],
       ['林俊杰', '🎤', 301, 0, '唱歌的人假装唱得不太用力，听的人假装没掉眼泪。'],
+      ['刘宇宁', '🎙️', 238, 0, '摩登兄弟的歌声，陪你走过每一段路。'],
+      ['汪苏泷', '🎹', 265, 0, '小汪的旋律，青春回忆的 BGM。'],
+      ['薛之谦', '🎤', 412, 0, '用一首歌，唱尽我们的故事。'],
     ].forEach(r => ins.run(r[0], r[1], r[2], r[3], r[4], JSON.stringify(pickGrad(r[0])), now));
   }
   if (db.prepare('SELECT COUNT(*) c FROM wall_posts').get().c === 0) {
@@ -245,6 +247,13 @@ function seed() {
   for (const [n, s] of Object.entries(SEED_SLOGANS)) {
     db.prepare(`UPDATE walls SET slogan = ? WHERE name = ? AND (slogan = '' OR slogan IS NULL)`).run(s, n);
   }
+  const EXTRA_WALLS = [
+    ['刘宇宁','🎙️',238,'摩登兄弟的歌声，陪你走过每一段路。'],
+    ['汪苏泷','🎹',265,'小汪的旋律，青春回忆的 BGM。'],
+    ['薛之谦','🎤',412,'用一首歌，唱尽我们的故事。'],
+  ];
+  const addWall = db.prepare(`INSERT OR IGNORE INTO walls (name,emoji,fans,hype,owner_id,slogan,grad,created_at,custom) VALUES (?,?,?,0,NULL,?,?,?,0)`);
+  for (const [n,e,f,s] of EXTRA_WALLS) addWall.run(n,e,f,s,JSON.stringify(pickGrad(n)),new Date().toISOString());
 }
 seed();
 
@@ -276,7 +285,7 @@ function readBody(req) {
     let raw = '';
     req.on('data', (c) => {
       raw += c;
-      if (raw.length > 2 * 1024 * 1024) { reject(new Error('body too large')); req.destroy(); }
+      if (raw.length > 512 * 1024) { reject(new Error('body too large')); req.destroy(); }
     });
     req.on('end', () => {
       try { resolve(raw ? JSON.parse(raw) : {}); }
@@ -370,7 +379,7 @@ function getAuth(req) {
   const m = h.match(/^Bearer\s+(\S+)$/i);
   if (!m) return null;
   return db.prepare(
-    `SELECT s.token, s.expires_at, u.id, u.phone, u.nickname, u.created_at, u.avatar, u.cover, u.signature, u.school, u.city
+    `SELECT s.token, s.expires_at, u.id, u.phone, u.nickname, u.created_at, u.avatar, u.signature, u.school, u.city
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = ? AND s.expires_at > ?`).get(m[1], Date.now()) || null;
 }
@@ -675,7 +684,7 @@ function handleProfile(req, res) {
   return json(res, 200, {
     ok: true,
     user: {
-      id: auth.id, nickname: auth.nickname, avatar: auth.avatar, cover: auth.cover, signature: auth.signature,
+      id: auth.id, nickname: auth.nickname, avatar: auth.avatar, signature: auth.signature,
       school: auth.school, city: auth.city,
       phone_masked: maskPhone(auth.phone), created_at: auth.created_at,
       uid: 'TP' + String(auth.id).padStart(8, '0'),
@@ -703,14 +712,12 @@ async function handleUpdateProfile(req, res) {
   put('signature', b.signature, 60);
   put('school', b.school, 20);
   put('city', b.city, 20);
-  for (const field of ['avatar', 'cover']) {
-    if (b[field] === undefined) continue;
-    const value = String(b[field]);
-    const isPhoto = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
-    if (value.length > 700000 || (!isPhoto && !(field === 'cover' && value === '') && !(field === 'avatar' && value.length <= 16 && !/[<>]/.test(value)))) {
-      return json(res, 400, { ok: false, msg: '请选择有效照片，图片压缩后须小于 500 KB' });
-    }
-    put(field, value, 700000);
+  if (b.avatar !== undefined) {
+    const avatar = b.avatar;
+    const photo = typeof avatar === 'string' && avatar.length <= 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar);
+    const emoji = typeof avatar === 'string' && ['🎧','🎤','🎸','🎹','🥁','🎷','🎺','🕺','💃','🎼','✨','🔥','🌙','🐱','🦊','🐻'].includes(avatar);
+    if (!photo && !emoji) return json(res, 400, { ok: false, msg: '请选择有效头像，或重新裁剪照片' });
+    fields.push('avatar=?'); vals.push(avatar);
   }
 
   if (!fields.length) return json(res, 400, { ok: false, msg: '没有要修改的内容' });
@@ -721,7 +728,7 @@ async function handleUpdateProfile(req, res) {
   return json(res, 200, {
     ok: true, msg: '资料已更新',
     user: {
-      id: u.id, nickname: u.nickname, avatar: u.avatar, cover: u.cover, signature: u.signature,
+      id: u.id, nickname: u.nickname, avatar: u.avatar, signature: u.signature,
       school: u.school, city: u.city, phone_masked: maskPhone(u.phone),
       created_at: u.created_at, uid: 'TP' + String(u.id).padStart(8, '0'),
     },
@@ -750,6 +757,39 @@ function handleMessagesRead(req, res) {
 /* ================================================================
  * HTTP 服务
  * ================================================================ */
+db.exec(`CREATE TABLE IF NOT EXISTS direct_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER NOT NULL,
+  recipient_id INTEGER NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL,
+  read_flg INTEGER NOT NULL DEFAULT 0
+); CREATE INDEX IF NOT EXISTS dm_pair ON direct_messages(sender_id,recipient_id,id);`);
+async function handleChat(req, res, pathname) {
+  const user = getAuth(req);
+  if (!user) return json(res,401,{ok:false,msg:'请先登录'});
+  if(pathname === '/api/chats' && req.method === 'GET') {
+    const contacts=db.prepare('SELECT id,nickname,avatar,school FROM users WHERE id<>? ORDER BY id DESC LIMIT 100').all(user.id);
+    const list=contacts.map(c=>({...c,
+      last:db.prepare('SELECT content,created_at FROM direct_messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?) ORDER BY id DESC LIMIT 1').get(user.id,c.id,c.id,user.id)||null,
+      unread:db.prepare('SELECT COUNT(*) n FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_flg=0').get(c.id,user.id).n
+    })).sort((a,b)=>(b.last?.created_at||'').localeCompare(a.last?.created_at||''));
+    return json(res,200,{ok:true,list});
+  }
+  const match=pathname.match(/^\/api\/chats\/(\d+)$/);
+  if (!match) return json(res,404,{ok:false,msg:'对话不存在'});
+  const peer=db.prepare('SELECT id,nickname,avatar FROM users WHERE id=?').get(+match[1]);
+  if(!peer || peer.id===user.id) return json(res,400,{ok:false,msg:'请选择其他用户'});
+  if(req.method==='POST') {
+    const body=await readBody(req);
+    if(typeof body.content!=='string' || !body.content.trim() || body.content.trim().length>1000) return json(res,400,{ok:false,msg:'请输入1至1000字的消息'});
+    const result=db.prepare('INSERT INTO direct_messages(sender_id,recipient_id,content,created_at) VALUES(?,?,?,?)').run(user.id,peer.id,body.content.trim(),nowStr());
+    return json(res,200,{ok:true,message:db.prepare('SELECT * FROM direct_messages WHERE id=?').get(result.lastInsertRowid)});
+  }
+  if(req.method==='GET') {
+    const list=db.prepare('SELECT * FROM (SELECT id,sender_id,recipient_id,content,created_at FROM direct_messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?) ORDER BY id DESC LIMIT 200) ORDER BY id').all(user.id,peer.id,peer.id,user.id);
+    if(list.length) db.prepare('UPDATE direct_messages SET read_flg=1 WHERE sender_id=? AND recipient_id=? AND id<=?').run(peer.id,user.id,list[list.length-1].id);
+    return json(res,200,{ok:true,peer,list});
+  }
+  return json(res,405,{ok:false,msg:'不支持的操作'});
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const p = url.pathname;
@@ -765,6 +805,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if(p === '/api/chats' || p.startsWith('/api/chats/')) return await handleChat(req,res,p);
     /* ---------- 页面 ---------- */
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -806,6 +847,13 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/walls' && req.method === 'POST') return await handleCreateWall(req, res);
 
     /* ---------- 我的 ---------- */
+    // 尚未接入身份核验机构，不接收证件资料或客户端自报认证结果。
+    if (p === '/api/me/identity') {
+      const auth = getAuth(req);
+      if (!auth) return json(res, 401, { ok: false, msg: '请先登录' });
+      if (req.method !== 'GET') return json(res, 503, { ok: false, msg: '实名认证服务尚未开通' });
+      return json(res, 200, { ok: true, status: 'unverified', available: false });
+    }
     if (p === '/api/me/profile' && req.method === 'GET') return handleProfile(req, res);
     if (p === '/api/me/profile' && req.method === 'POST') return await handleUpdateProfile(req, res);
     if (p === '/api/messages' && req.method === 'GET') return handleMessages(req, res);
